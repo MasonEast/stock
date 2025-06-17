@@ -1,0 +1,12 @@
+/data/*.h5
+/storage/*.db
+/storage/*.csv
+/.vscode/
+/__pycache__/
+/stock.log
+*.pyc
+.DS_Store
+storage/Positions
+config.yaml
+
+logs/*
