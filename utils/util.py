@@ -3,6 +3,7 @@ import akshare as ak
 from functools import lru_cache
 import time
 import logging
+from concurrent.futures import ThreadPoolExecutor
 
 @lru_cache(maxsize=1)
 def get_stock_list():
@@ -68,22 +69,45 @@ def is_zhangting(row):
     zt_price = round(pre_close * 1.1, 2)
     return row['close'] >= zt_price
 
+def task(code, days):
+    start_date=pd.Timestamp.today() - pd.Timedelta(days=days*2)
+    df = ak.stock_zh_a_hist(symbol=code, period="daily", 
+                                start_date=start_date.strftime('%Y%m%d'),  
+                                adjust="qfq")
+    return df
+
+# def get_history_data(code, days=60):
+#     """获取指定天数历史数据并标记涨停日"""
+    
+#     df = {}
+        
+#     with ThreadPoolExecutor(max_workers=15) as executor:
+#         try:
+#             future = executor.submit(task, code, days)  # 提交任务
+#             df = future.result()  # 获取结果
+#             print(df, '----') 
+#             if df is not None:
+#                 df['date'] = pd.to_datetime(df['日期'])
+#                 df['pre_close'] = df['收盘'].shift(1).bfill()  # 前一日收盘价
+#                 df['close'] = df['收盘']
+#                 df['is_zt'] = df.apply(is_zhangting, axis=1)
+#                 df['volume'] = df['成交量']
+#         except Exception as e:
+#             print(f"获取 {code} 数据失败: {e}")
+
+#     return df[['date', 'close', 'volume', 'is_zt']]
+    
 def get_history_data(code, days=60):
     """获取指定天数历史数据并标记涨停日"""
     try:
-        start_date=pd.Timestamp.today() - pd.Timedelta(days=days*2)
-        df = ak.stock_zh_a_hist(symbol=code, period="daily", 
-                                start_date=start_date.strftime('%Y%m%d'),  
-                                adjust="qfq")
-
-        df['date'] = pd.to_datetime(df['日期'])
-        df['pre_close'] = df['收盘'].shift(1).bfill()  # 前一日收盘价
-        df['close'] = df['收盘']
-        df['is_zt'] = df.apply(is_zhangting, axis=1)
-        df['volume'] = df['成交量']
+        df = task(code, days)
+        if df is not None:
+                    df['date'] = pd.to_datetime(df['日期'])
+                    df['pre_close'] = df['收盘'].shift(1).bfill()  # 前一日收盘价
+                    df['close'] = df['收盘']
+                    df['is_zt'] = df.apply(is_zhangting, axis=1)
+                    df['volume'] = df['成交量']
 
         return df[['date', 'close', 'volume', 'is_zt']]
     except Exception as e:
         print(f"获取 {code} 数据失败: {e}")
-        return pd.DataFrame()
-  
